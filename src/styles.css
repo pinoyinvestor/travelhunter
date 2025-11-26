@@ -811,3 +811,236 @@ input[type="range"] {
     flex: 1 1 48%;
   }
 }
+
+
+/* ============================================
+   FÖLJDA ÖAR – ÖVERSIKT
+   ============================================ */
+
+.followed {
+  animation: fadeIn 0.25s ease-out;
+}
+
+.followed h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+/* AI-sammanfattning box */
+.ai-followed-summary {
+  background: #0b1020;
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1px solid #1a2035;
+  margin-bottom: 16px;
+}
+
+.ai-summary-text {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #d3d5e0;
+  margin: 0;
+}
+
+/* Rutt-lista */
+.followed ol {
+  padding-left: 18px;
+  margin: 8px 0 18px;
+}
+
+.followed li {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+/* GRID för väderkort */
+.followed-weather-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+/* ________________________
+   VÄDERKORT FÖR FÖLJD Ö
+   ________________________ */
+.weather-card {
+  background: #0b1020;
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1px solid #1a2035;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.weather-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+/* Dagliga rader i varje kort */
+.daily-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 13px;
+}
+
+.daily-row:last-child {
+  border-bottom: none;
+}
+
+.daily-row span {
+  display: inline-block;
+}
+
+.daily-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+/* Datum-ikon-temp */
+.daily-item span:nth-child(1) {
+  flex: 1.5;
+  color: #c1c3d4;
+}
+
+.daily-item span:nth-child(2) {
+  flex: 0.6;
+  text-align: center;
+  font-size: 18px;
+}
+
+.daily-item span:nth-child(3) {
+  flex: 0.8;
+  text-align: right;
+  color: #f7f7f7;
+}
+
+/* Effekt när man hovrar på desktop */
+@media (min-width: 700px) {
+  .weather-card:hover {
+    transform: translateY(-2px);
+    transition: 0.15s ease;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+  }
+}
+/* ==============================
+   FOLLOWED ISLANDS – MINIMAL
+   ============================== */
+
+.screen.followed {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+/* Titel + back */
+.screen.followed h2 {
+  margin: 4px 0 20px;
+  font-size: 26px;
+}
+
+/* Kort (AI + rutt) */
+.screen.followed .card {
+  background: #020617;             /* väldigt mörk men ren */
+  border-radius: 16px;
+  border: 1px solid #111827;
+  box-shadow: none;                /* ingen stor skugga */
+  color: #e5e7eb;
+}
+
+/* AI-sammanfattning – mer luft, lätt att läsa */
+.ai-followed-summary h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+pre.ai-summary-text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #d1d5db;
+}
+
+/* Rutt-lista */
+.screen.followed .card ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+.screen.followed .card li {
+  margin: 2px 0;
+}
+
+/* GRID för ö-kort */
+.followed-weather-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* två kolumner på större skärm */
+@media (min-width: 800px) {
+  .followed-weather-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Väderkort per ö */
+.followed-weather-grid .weather-card {
+  background: #020617;
+  border-radius: 16px;
+  border: 1px solid #111827;
+  box-shadow: none;
+  padding: 14px 16px 10px;
+}
+
+.followed-weather-grid .weather-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  color: #f9fafb;
+}
+
+/* Dagar – vertikal lista istället för “chips-rad” */
+.followed-weather-grid .daily-row {
+  display: flex;
+  flex-direction: column;       /* stapla dagarna */
+  gap: 6px;
+}
+
+/* En dag = enkel rad: datum vänster, ikon + temp höger */
+.followed-weather-grid .daily-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #020617;
+  border: 1px solid #1f2937;
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.followed-weather-grid .daily-item span:nth-child(2) {
+  margin: 0 6px;
+  font-size: 18px;              /* ikonen lite större */
+}
+
+/* Mobil: lite kompaktare men samma struktur */
+@media (max-width: 480px) {
+  .screen.followed {
+    padding-inline: 12px;
+  }
+
+  .followed-weather-grid .daily-item {
+    font-size: 13px;
+    padding: 5px 7px;
+  }
+}

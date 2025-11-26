@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { DESTINATIONS } from "./data/destinations";
+import { FollowsProvider, useFollows } from "./context/FollowsContext";
+import { buildAISummary, planBestRoute } from "./utils/tripAi";
 
 const OPEN_METEO_BASE = "https://api.open-meteo.com/v1/forecast";
 
@@ -38,6 +40,18 @@ function formatDateLabel(dateStr) {
   return `${day} ${dayNum}/${month}`;
 }
 
+function formatUpdatedTimestamp(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("sv-SE", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 // AI-lik analys av vädret (sammanfattning)
 function getWeatherAnalysis(daily, daysToUse, hourly) {
   if (!daily || !daily.temperature_2m_max || daily.temperature_2m_max.length === 0) {
@@ -62,7 +76,6 @@ function getWeatherAnalysis(daily, daysToUse, hourly) {
   let totalCloud = 0;
   let cloudHours = 0;
 
-  // regn/sol
   for (let i = 0; i < actualDays; i++) {
     const t = daily.temperature_2m_max[i];
     const p = daily.precipitation_sum[i];
@@ -86,6 +99,7 @@ function getWeatherAnalysis(daily, daysToUse, hourly) {
     }
   }
 
+  const avgTemp = totalTemp / actualDays;
   const avgRain = totalRain / actualDays;
   const avgCloud = cloudHours ? totalCloud / cloudHours : 50;
 
@@ -94,7 +108,9 @@ function getWeatherAnalysis(daily, daysToUse, hourly) {
       label: "Molnigt men torrt",
       emoji: "🌥️",
       title: "Molnigare dagar",
-      message: "Det kommer vara mestadels molnigt men nästan inget regn."
+      message: `Mestadels molnigt men nästan inget regn. Ca ${avgTemp.toFixed(
+        1
+      )}°C i snitt.`
     };
   }
 
@@ -103,8 +119,9 @@ function getWeatherAnalysis(daily, daysToUse, hourly) {
       label: "Sol-säkert",
       emoji: "☀️",
       title: "Sol-säkert äventyr",
-      message:
-        "Nästan bara sol under era dagar – perfekt för strand, ö-hoppning och fotosessioner."
+      message: `Nästan bara sol under perioden (≈ ${avgTemp.toFixed(
+        1
+      )}°C). Perfekt för strand, ö-hoppning och fotosessioner.`
     };
   }
 
@@ -114,7 +131,7 @@ function getWeatherAnalysis(daily, daysToUse, hourly) {
       emoji: "⛅",
       title: "Mestadels bra väder",
       message:
-        "En mix av sol och några regnskurar – funkar för både utflykter och chill."
+        "En mix av sol och flera torrperioder, men med några regnskurar. Funkar för både utflykter och chill."
     };
   }
 
@@ -124,7 +141,7 @@ function getWeatherAnalysis(daily, daysToUse, hourly) {
       emoji: "🌧️",
       title: "Regnigare period",
       message:
-        "Mycket regn i prognosen. Bättre om ni tänkt dyka eller inte är väderkänsliga."
+        "Ganska mycket regn i prognosen. Bättre om ni tänkt dyka, chilla eller inte är superväderkänsliga."
     };
   }
 
@@ -133,11 +150,12 @@ function getWeatherAnalysis(daily, daysToUse, hourly) {
     emoji: "🌤️",
     title: "Okej väder",
     message:
-      "Vädret ser helt okej ut – inte super-soligt men heller inte dåligt."
+      "Vädret ser helt okej ut – inte super-soligt men heller inte dåligt. En bra allround-period."
   };
 }
 
 // Score-funktion: väder + preferenser (ingen budget längre)
+// Nu väger vi in: nederbörd, vind, moln, regn-sannolikhet & UV (sol)
 function computeScores(
   daily,
   daysToUse,
@@ -172,12 +190,36 @@ function computeScores(
     const t = daily.temperature_2m_max[i];
     const p = daily.precipitation_sum[i];
     const w = daily.windspeed_10m_max[i];
+    const prob =
+      daily.precipitation_probability_mean?.[i] != null
+        ? daily.precipitation_probability_mean[i]
+        : 50;
+    const uv =
+      daily.uv_index_max?.[i] != null ? daily.uv_index_max[i] : 7;
 
     let score = 0;
-    if (t >= 27 && t <= 33) score += 3; // temp
+
+    // temp (30-ish är sweetspot)
+    if (t >= 27 && t <= 33) score += 3;
+    else if (t >= 25 && t < 27) score += 2;
+    else if (t > 33 && t <= 35) score += 1;
+
+    // nederbörd
     if (p < 3) score += 4;
-    else if (p < 8) score += 2; // regn
-    if (w <= 25) score += 2; // vind
+    else if (p < 8) score += 2;
+    else if (p > 15) score -= 2;
+
+    // vind
+    if (w <= 25) score += 2;
+    else if (w > 40) score -= 1;
+
+    // regn-sannolikhet
+    if (prob < 20) score += 1.5;
+    else if (prob > 70) score -= 2;
+
+    // UV – proxy för sol, men för starkt kan vara jobbigt
+    if (uv >= 7 && uv <= 10) score += 1;
+    else if (uv <= 3) score -= 1;
 
     weatherTotal += score;
   }
@@ -195,9 +237,9 @@ function computeScores(
       let sunBoost = weatherScore * 0.3;
       if (typeof avgCloud === "number") {
         if (avgCloud < 40) {
-          sunBoost += 2; // riktigt soligt = extra plus
+          sunBoost += 2; // riktigt soligt
         } else if (avgCloud > 70) {
-          sunBoost -= 2; // väldigt molnigt = minus
+          sunBoost -= 2; // väldigt molnigt
         }
       }
       preferenceBonus += sunBoost;
@@ -217,25 +259,25 @@ function computeScores(
     }
   }
 
-  // liten extra vikt baserat på "grund-prioritering"
+  // Vikt baserat på grund-prioritering
   let weatherWeight = 1;
   let extraSunBoost = 0;
 
   if (preference === "weather") {
     weatherWeight = 1.2;
   } else if (preference === "sun") {
-    // global soljakt: premiera mindre moln
+    // global soljakt: premiera mindre moln extra
     if (typeof avgCloud === "number") {
-      if (avgCloud < 40) extraSunBoost += 2;
+      if (avgCloud < 40) extraSunBoost += 2.5;
       else if (avgCloud < 60) extraSunBoost += 1;
-      else if (avgCloud > 75) extraSunBoost -= 1;
+      else if (avgCloud > 75) extraSunBoost -= 1.5;
     }
   }
 
   const preferenceScore = preferenceBonus + extraSunBoost;
   const totalScore = weatherScore * weatherWeight + preferenceScore;
 
-  const maxPossible = 20; // ungefärlig max-score utan budget/hotell
+  const maxPossible = 24; // uppdaterad ungefärlig max-score
   const matchPercent = Math.max(
     0,
     Math.min(100, Math.round((totalScore / maxPossible) * 100))
@@ -249,8 +291,8 @@ function computeScores(
   };
 }
 
-function App() {
-  const [screen, setScreen] = useState("splash"); // splash | home | filters | results
+function InnerApp() {
+  const [screen, setScreen] = useState("splash"); // splash | home | filters | results | followed
 
   const [startCity, setStartCity] = useState("manila");
   const [useGps, setUseGps] = useState(false);
@@ -259,7 +301,6 @@ function App() {
   const [days, setDays] = useState(4);
   const [startDate, setStartDate] = useState(TODAY_STR);
 
-  // Grund-prioritering: bara väder / maxa solen (ingen budget längre)
   const [preference, setPreference] = useState("weather"); // weather | sun
 
   const [preferences, setPreferences] = useState({
@@ -273,7 +314,10 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [ranked, setRanked] = useState([]);
   const [error, setError] = useState("");
-  const [favorites, setFavorites] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  // följer-öar (lokalt via context)
+  const { followedIslands } = useFollows();
 
   // Splash -> Home
   useEffect(() => {
@@ -317,12 +361,6 @@ function App() {
     }));
   };
 
-  const toggleFavorite = (id) => {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
   async function calculateRanking() {
     setLoading(true);
     setError("");
@@ -341,7 +379,7 @@ function App() {
       for (const dest of DESTINATIONS) {
         const url = `${OPEN_METEO_BASE}?latitude=${dest.lat}&longitude=${
           dest.lon
-        }&daily=temperature_2m_max,precipitation_sum,windspeed_10m_max&hourly=temperature_2m,precipitation,cloudcover,relativehumidity_2m&start_date=${startDate}&end_date=${endDate}&timezone=auto`;
+        }&daily=temperature_2m_max,precipitation_sum,windspeed_10m_max,precipitation_probability_mean,uv_index_max&hourly=temperature_2m,precipitation,cloudcover,relativehumidity_2m&start_date=${startDate}&end_date=${endDate}&timezone=auto`;
 
         const res = await fetch(url);
 
@@ -418,6 +456,7 @@ function App() {
 
       results.sort((a, b) => b.score - a.score);
       setRanked(results);
+      setLastUpdated(new Date().toISOString());
       setScreen("results");
     } catch (e) {
       console.error(e);
@@ -616,6 +655,32 @@ function App() {
             {days > 1 ? "ar" : ""}). <br />
             Sorterat efter väder och vad ni är ute efter.
           </p>
+
+          {lastUpdated && (
+            <p className="intro-text small">
+              Prognosen senast uppdaterad:{" "}
+              <strong>{formatUpdatedTimestamp(lastUpdated)}</strong>
+            </p>
+          )}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <button
+              className="btn secondary"
+              onClick={calculateRanking}
+              disabled={loading}
+            >
+              🔄 Uppdatera prognos
+            </button>
+
+            {followedIslands.length > 0 && (
+              <button
+                className="btn secondary"
+                onClick={() => setScreen("followed")}
+              >
+                ⭐ Följda öar & AI-rutt
+              </button>
+            )}
+          </div>
         </div>
 
         {loading && <p>Laddar väderdata...</p>}
@@ -630,11 +695,132 @@ function App() {
               destination={dest}
               startDate={startDate}
               originCode={originCode}
-              isFavorite={favorites.includes(dest.id)}
-              onToggleFavorite={() => toggleFavorite(dest.id)}
             />
           ))}
         </div>
+      </div>
+    );
+  };
+
+  const renderFollowed = () => {
+    const followedDestinations = DESTINATIONS.filter((d) =>
+      followedIslands.includes(d.id)
+    );
+
+    const maxDays = Math.min(Math.max(days, 1), 10);
+
+    // Bygg forecastMap till AI:n från befintlig ranked-data
+    const forecastMap = {};
+    for (const dest of followedDestinations) {
+      const rankedDest = ranked.find((r) => r.id === dest.id);
+      if (
+        !rankedDest ||
+        !rankedDest.daily ||
+        !rankedDest.daily.time ||
+        !rankedDest.daily.temperature_2m_max ||
+        !rankedDest.daily.precipitation_sum
+      ) {
+        continue;
+      }
+
+      const dayCount = Math.min(
+        maxDays,
+        rankedDest.daily.time.length,
+        rankedDest.daily.temperature_2m_max.length,
+        rankedDest.daily.precipitation_sum.length
+      );
+
+      const dailyList = [];
+      for (let i = 0; i < dayCount; i++) {
+        const date = rankedDest.daily.time[i];
+        const temp = rankedDest.daily.temperature_2m_max[i];
+        const rain = rankedDest.daily.precipitation_sum[i];
+
+        let icon = "☀️";
+        if (rain >= 8) icon = "🌧️";
+        else if (rain >= 3) icon = "🌦️";
+
+        dailyList.push({
+          date,
+          temp,
+          rain,
+          icon,
+          condition: icon,
+          rainChance: rain
+        });
+      }
+
+      forecastMap[dest.id] = { daily: dailyList };
+    }
+
+    const aiSummaryText = buildAISummary(followedDestinations, forecastMap);
+    const bestRoute = planBestRoute(followedDestinations, forecastMap);
+
+    return (
+      <div className="screen followed">
+        <button className="back-btn" onClick={() => setScreen("results")}>
+          ← Tillbaka till ranking
+        </button>
+
+        <h2>Dina följda öar</h2>
+
+        {lastUpdated && (
+          <p className="intro-text small">
+            Prognosen bygger på senaste uppdateringen:{" "}
+            <strong>{formatUpdatedTimestamp(lastUpdated)}</strong>
+          </p>
+        )}
+
+        {followedDestinations.length === 0 && (
+          <p>Du följer inga öar ännu. Gå till ranking och tryck på ♥ för att följa.</p>
+        )}
+
+        {followedDestinations.length > 0 && (
+          <>
+            <section className="card ai-followed-summary">
+              <h3>AI-resesammanfattning</h3>
+              <pre className="ai-summary-text">{aiSummaryText}</pre>
+            </section>
+
+            <section className="card">
+              <h3>Föreslagen rutt baserad på vädret</h3>
+              {bestRoute && bestRoute.length > 0 ? (
+                <ol>
+                  {bestRoute.map((d) => (
+                    <li key={d.id}>{d.name}</li>
+                  ))}
+                </ol>
+              ) : (
+                <p>Ingen rutt kunde beräknas (saknar väderdata). Kör en ranking först.</p>
+              )}
+            </section>
+
+            <section className="followed-weather-grid">
+              {followedDestinations.map((dest) => {
+                const fc = forecastMap[dest.id];
+
+                return (
+                  <div key={dest.id} className="weather-card">
+                    <h3>{dest.name}</h3>
+                    {fc && fc.daily && fc.daily.length > 0 ? (
+                      <div className="daily-row">
+                        {fc.daily.map((day) => (
+                          <div key={day.date} className="daily-item">
+                            <span>{formatDateLabel(day.date)}</span>
+                            <span>{day.icon}</span>
+                            <span>{Math.round(day.temp)}°C</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>Ingen väderdata ännu. Kör en ranking först.</p>
+                    )}
+                  </div>
+                );
+              })}
+            </section>
+          </>
+        )}
       </div>
     );
   };
@@ -645,6 +831,7 @@ function App() {
       {screen === "home" && renderHome()}
       {screen === "filters" && renderFilters()}
       {screen === "results" && renderResults()}
+      {screen === "followed" && renderFollowed()}
     </div>
   );
 }
@@ -655,9 +842,7 @@ function DestinationCard({
   destination,
   days,
   startDate,
-  originCode,
-  isFavorite,
-  onToggleFavorite
+  originCode
 }) {
   const {
     id,
@@ -680,6 +865,8 @@ function DestinationCard({
   } = destination;
 
   const [openDayIndex, setOpenDayIndex] = useState(null);
+  const { isFollowed, toggleFollow } = useFollows();
+  const isFavorite = isFollowed(id);
 
   const dayCount = Math.min(
     days,
@@ -852,9 +1039,9 @@ function DestinationCard({
           </div>
           <button
             className={`fav-btn ${isFavorite ? "fav-btn-active" : ""}`}
-            onClick={onToggleFavorite}
+            onClick={() => toggleFollow(id)}
             title={
-              isFavorite ? "Ta bort från favoriter" : "Lägg till i favoriter"
+              isFavorite ? "Ta bort från följda öar" : "Följ den här ön"
             }
           >
             {isFavorite ? "♥" : "♡"}
@@ -889,7 +1076,7 @@ function DestinationCard({
         <div className="destination-meta">
           <div className="score">
             Total Travelhunter-score:{" "}
-            <strong>{score.toFixed(1)}</strong> / 20
+            <strong>{score.toFixed(1)}</strong> / 24
           </div>
           <div className="sub-scores">
             <span>☀ Väder: {weatherScore?.toFixed(1) ?? "-"} </span>
@@ -1046,4 +1233,11 @@ function DestinationCard({
   );
 }
 
-export default App;
+// Yttre komponent: lägger på FollowsProvider runt hela appen
+export default function App() {
+  return (
+    <FollowsProvider>
+      <InnerApp />
+    </FollowsProvider>
+  );
+}
