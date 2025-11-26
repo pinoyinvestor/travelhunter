@@ -1,75 +1,61 @@
-# Travelhunter – Jaga solen i Filippinerna ☀️🇵🇭
+# Travelhunter – Chase the Sun in the Philippines ☀️🇵🇭
 
-Travelhunter är en React-app byggd för att planera en resa i Filippinerna genom att **jaga bäst väder mellan olika öar**.
+**Travelhunter** is a weather-driven React application that ranks the best islands in the Philippines based on **sun probability, rain levels, clouds, and your personal travel preferences**.
 
-Du anger reseperiod, antal dagar och vad du är ute efter (sol, surf, dykning, chill osv). Appen hämtar live-prognoser från Open-Meteo och **rankar ö-destinationer** (t.ex. Siargao, El Nido, Siquijor) efter:
+The app fetches **live weather forecasts** from Open-Meteo and compares destinations such as **Siargao, El Nido, and Siquijor** to help travelers choose where the weather will be the best during their travel dates.
 
-- hur bra vädret är (temperatur, regn, vind)
-- hur mycket sol/mindre moln det är
-- hur bra destinationen matchar dina preferenser (sol, surf, party, dykning, chill)
-
-Perfekt för att planera en resa där du vill **maxa solchanserna** och se vilken ö som ser bäst ut just de dagar du ska resa.
+Built for my own upcoming trip — and for anyone who wants to **maximize sunshine and avoid rainy islands**.
 
 ---
 
-## Funktioner
+## 🌴 Features
 
-- 🔍 Välj start:
-  - Använd **din nuvarande position** via GPS  
-  - Eller välj en startstad som **Manila, Cebu, Davao eller Clark**
+### 🔥 Live Weather Ranking  
+For every destination, Travelhunter retrieves:
+- Daily forecast with weather icons (☀️ ⛅ 🌧️)
+- Hourly forecast (every 3 hours)
+- Temperature, precipitation, wind, cloud coverage
+- AI-style weather summary (Sunny, Cloudy But Dry, Rainy Period)
 
-- 📅 Resinställningar:
-  - Välj **startdatum**
-  - Välj **antal dagar** (1–10)
-  - Välj **grund-prioritering**:
-    - “Bäst väder totalt”
-    - “Maxa solen (minst moln)”
-  - Välj vad ni är ute efter:
-    - ☀️ Soljakt  
-    - 🎉 Party / nightlife  
-    - 🤿 Dykning  
-    - 🏄 Surf  
-    - 😌 Lugn & chill  
+### 🎯 Preference-Based Scoring  
+Customize what you're looking for:
+- ☀️ Sun seeker mode (max sunshine, minimal clouds)
+- 🏄 Surf spots  
+- 🤿 Diving spots  
+- 🎉 Nightlife / party  
+- 😌 Chill & relaxation  
 
-- ☁️ Väderanalys:
-  - Hämtar **live-väder** per destination via Open-Meteo
-  - Visar:
-    - **dag-för-dag** (ikon + max-temp + regn-info)
-    - **timvis** var 3:e timme när du klickar på en dag
-  - AI-lik sammanfattning per destination:
-    - t.ex. “Sol-säkert”, “Molnigt men torrt”, “Regnigare period”
+The app generates a **Travelhunter Score** and a **Match Percentage** for each island.
 
-- 📊 Ranking & score:
-  - Varje destination får:
-    - Total **Travelhunter-score**
-    - **Väderscore**
-    - **Matchningsscore** mot dina val
-    - Matchning i procent (t.ex. 82% match)
+### ✈️ Built-in Quick Travel Tools  
+Each island card includes:
+- **Google Flights** link based on your selected start city  
+- **Airbnb search** for your exact dates  
+- **Google Search** for “things to do” on that island  
+- **Google Maps** location link  
 
-- 🌍 Snabbknappar per destination:
-  - ✈ **Visa flygpriser via Google Flights** från vald stad
-  - 🏡 **Sök boende på Airbnb** mellan dina datum
-  - 🔍 **Saker att göra** – Google-sökning på aktiviteter för ön
-  - 🗺️ **Visa platsen på Google Maps**
+All in one place — weather + planning.
 
-- ❤️ Favoriter:
-  - Markera öar du gillar med hjärta för att hålla koll på dina favoriter.
+### 📍 Smart Start Options  
+Choose your trip origin:
+- Use **current GPS location**
+- Select from popular hubs: **Manila, Cebu, Davao, Clark**
 
 ---
 
-## Teknisk stack
+## ⚙️ Tech Stack
 
 - **React**
-- **Open-Meteo API** för väderdata
-- Ren **CSS** för UI/design (`styles.css`)
-- Ingen backend – all logik körs i frontend
+- **Open-Meteo API** (live weather data)
+- **Vanilla CSS** (custom UI)
+- Client-only — *no backend required*
 
 ---
 
-## Kom igång
+## 🚀 Installation
 
-1. Klona repot:
+Clone the repository:
 
-   ```bash
-   git clone https://github.com/<ditt-användarnamn>/<ditt-repo-namn>.git
-   cd <ditt-repo-namn>
+```bash
+git clone https://github.com/pinoyinvestor/travelhunter.git
+cd travelhunter
